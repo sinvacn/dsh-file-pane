@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "File pane first",
-    "description": "Open Workspace files in the left pane of the right Sidebar, keeping the Workspace files tree on the right."
+    "title": "File Pane",
+    "description": "VS Code-style file pane for the right sidebar: files open left of the Workspace tree, with preview tabs, terminal and Copy to Chat."
   }
 }
