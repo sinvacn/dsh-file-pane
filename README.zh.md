@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）右栏的文件体验接近 VS Code：文件开在 Workspace files 树的**左侧**，树的展开状态和滚动位置保留；文件 tab 支持 preview / pin；右键可直接开终端；选中代码可一键 Copy to Chat。
+让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）右栏的文件体验接近 VS Code、Codex：文件树常驻右侧，文件在左侧打开；单击预览、双击固定；右键开终端；选中代码一键 Copy to Chat。
 
 ## 截图
 

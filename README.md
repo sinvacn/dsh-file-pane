@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.5-4c6ef5)](https://github.com/deepseek-ai/deepseek-harness)
 
-A VS Code-style file pane for the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) right sidebar: files open to the left of the Workspace tree, with preview tabs, an integrated terminal, and Copy to Chat.
+A VS Code/Codex-style file pane for the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) right sidebar: the tree stays on the right while files open on the left, with preview/pin tabs, a right-click terminal, and Copy to Chat.
 
 English | [中文](README.zh.md)
 
