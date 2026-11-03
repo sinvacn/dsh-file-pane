@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "文件优先在左 pane 打开",
+    "description": "点击 Workspace files 中的文件时，在右栏左侧的 pane 打开文件，Workspace files 树保留在右侧。"
+  }
+}

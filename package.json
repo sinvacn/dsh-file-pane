@@ -1,0 +1,48 @@
+{
+  "name": "dsh-file-pane",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "VS Code-style file pane, preview tabs, terminal and Copy to Chat for the DeepSeek Harness (DSH) right sidebar.",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "README.md",
+    "README.zh.md",
+    "cordis.patch.yml",
+    "locale/*.json"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ]
+    }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sinvacn/dsh-file-pane.git"
+  },
+  "homepage": "https://github.com/sinvacn/dsh-file-pane#readme",
+  "bugs": {
+    "url": "https://github.com/sinvacn/dsh-file-pane/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "sidebar",
+    "file-pane",
+    "preview-tabs"
+  ]
+}
