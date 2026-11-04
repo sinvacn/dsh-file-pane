@@ -47,11 +47,15 @@ window.__ModuleLoader__.load({
     const NS = 'filePane'
     const zh = {
       openTerminal: '在终端中打开',
+      copyRelativePath: '复制相对路径',
+      copyAbsolutePath: '复制绝对路径',
       copy: '复制',
       copyToChat: '复制到对话',
     }
     const en = {
       openTerminal: 'Open Terminal',
+      copyRelativePath: 'Copy Relative Path',
+      copyAbsolutePath: 'Copy Absolute Path',
       copy: 'Copy',
       copyToChat: 'Copy to Chat',
     }
@@ -87,6 +91,43 @@ window.__ModuleLoader__.load({
     function cssEscape(value) {
       if (globalThis.CSS && typeof globalThis.CSS.escape === 'function') return globalThis.CSS.escape(String(value))
       return String(value).replace(/["\\]/g, '\\$&')
+    }
+
+    /**
+     * Workspace-relative for paths inside the root, absolute for everything
+     * else. The root itself is `.`, the conventional relative form.
+     */
+    function relativePath(root, absolute) {
+      const trimmed = String(absolute).replace(/[\\/]+$/, '')
+      const raw = trimmed === '' ? String(absolute) : trimmed
+      if (root === undefined || root === null || root === '') return raw
+      const base = String(root).replace(/[\\/]+$/, '')
+      if (base === '') return raw
+      if (raw === base) return '.'
+      if (raw.startsWith(`${base}/`) || raw.startsWith(`${base}\\`)) return raw.slice(base.length + 1)
+      return raw
+    }
+
+    /** A trailing `:line`, `:start-end` or `:line:column` on a file address. */
+    const COLON_LINE = /:([1-9]\d*)(?:-[1-9]\d*)?(?::[1-9]\d*)?$/
+
+    /**
+     * Move a trailing `:line` off a file address into the navigation params the
+     * text preview reads. The preview highlights and scrolls to `params.line`,
+     * so the bare address is what the tab has to be opened with.
+     */
+    function withLineTarget(address, options) {
+      const base = options === undefined || options === null ? {} : options
+      if (typeof address !== 'string' || !address.startsWith(FILE_PREFIX)) return { address, options: base }
+      if (/[?#]/.test(address)) return { address, options: base }
+      const match = COLON_LINE.exec(address)
+      if (match === null) return { address, options: base }
+      const line = Number(match[1])
+      if (!Number.isSafeInteger(line)) return { address, options: base }
+      return {
+        address: address.slice(0, match.index),
+        options: { ...base, params: { ...(base.params ?? {}), line } },
+      }
     }
 
     /** Read one Session's adopted surface without depending on its store type. */
@@ -386,16 +427,10 @@ window.__ModuleLoader__.load({
 
     /** Workspace-relative where possible; absolute paths stay absolute. */
     function referencePath(sessionId, absolute) {
-      const raw = String(absolute).replace(/[\\/]+$/, '')
       const root = typeof document === 'undefined'
         ? undefined
         : document.querySelector(`[data-sidebar-right-session="${cssEscape(sessionId)}"] [data-files-root]`)?.dataset.filesRoot
-      if (root === undefined || root === '') return raw
-      const normalizedRoot = String(root).replace(/[\\/]+$/, '')
-      if (raw === normalizedRoot) return raw
-      if (raw.startsWith(`${normalizedRoot}/`)) return raw.slice(normalizedRoot.length + 1)
-      if (raw.startsWith(`${normalizedRoot}\\`)) return raw.slice(normalizedRoot.length + 1)
-      return raw
+      return relativePath(root, absolute)
     }
 
     /** The composer's file-reference grammar: quote whitespace, leave other paths bare. */
@@ -562,13 +597,29 @@ window.__ModuleLoader__.load({
       const original = controller && controller.openResourceIn
       if (typeof original !== 'function') return () => {}
 
+      // Chat links and inline @file references open through the public
+      // `openResource`, which bypasses `openResourceIn`; both need the
+      // `:line` suffix split off before the resource is claimed.
+      const originalOpenResource = controller.openResource
+      const wrappedOpenResource = typeof originalOpenResource === 'function'
+        ? function (address, options) {
+          if (globalThis.__FILE_PANE_DISABLED__ === true) {
+            return originalOpenResource.call(this, address, options)
+          }
+          const target = withLineTarget(address, options)
+          return originalOpenResource.call(this, target.address, target.options)
+        }
+        : undefined
+
       const wrapped = function (sessionId, address, options) {
         if (globalThis.__FILE_PANE_DISABLED__ === true) {
           return original.call(this, sessionId, address, options)
         }
+        const target = withLineTarget(address, options)
+        address = target.address
+        const opts = target.options
         const debug = globalThis.__FILE_PANE_DEBUG__ === true
         const log = (...args) => { if (debug) console.info(`[${TAG}]`, ...args) }
-        const opts = options === undefined || options === null ? {} : options
         if (typeof address !== 'string' || !address.startsWith(FILE_PREFIX)) {
           return original.call(this, sessionId, address, opts)
         }
@@ -632,6 +683,7 @@ window.__ModuleLoader__.load({
       }
 
       controller.openResourceIn = wrapped
+      if (wrappedOpenResource !== undefined) controller.openResource = wrappedOpenResource
 
       // ---------------------------------------------------------- context menu
       let menuCleanup = null
@@ -750,21 +802,27 @@ window.__ModuleLoader__.load({
           const row = button !== null && button.parentElement?.hasAttribute('data-files-entry')
             ? button.parentElement
             : null
-          let cwd
-          if (row !== null) {
-            const path = row.dataset.filesPath
-            if (path === undefined || path === '') return
-            cwd = row.dataset.filesEntry === 'directory' ? path : parentPath(path)
-          } else {
-            cwd = root.dataset.filesRoot
-          }
-          if (cwd === undefined || cwd === '') return
+          const rootPath = root.dataset.filesRoot
+          const path = row === null ? rootPath : row.dataset.filesPath
+          if (path === undefined || path === '') return
+          const cwd = row !== null && row.dataset.filesEntry !== 'directory' ? parentPath(path) : path
+          if (cwd === '') return
           event.preventDefault()
           event.stopPropagation()
-          showMenu(event, [{
-            label: t('openTerminal'),
-            run: () => openTerminalAt(controller, ctx, sessionId, treePane, cwd),
-          }])
+          showMenu(event, [
+            {
+              label: t('copyRelativePath'),
+              run: () => copyText(relativePath(rootPath, path)),
+            },
+            {
+              label: t('copyAbsolutePath'),
+              run: () => copyText(path),
+            },
+            {
+              label: t('openTerminal'),
+              run: () => openTerminalAt(controller, ctx, sessionId, treePane, cwd),
+            },
+          ])
           return
         }
 
@@ -822,6 +880,9 @@ window.__ModuleLoader__.load({
       console.info(`[${TAG}] installed: workspace files open in the left pane`)
       return () => {
         if (controller.openResourceIn === wrapped) controller.openResourceIn = original
+        if (wrappedOpenResource !== undefined && controller.openResource === wrappedOpenResource) {
+          controller.openResource = originalOpenResource
+        }
         if (typeof document !== 'undefined') {
           document.removeEventListener('dblclick', onDoubleClick, true)
           document.removeEventListener('contextmenu', onContextMenu, true)
@@ -858,6 +919,8 @@ window.__ModuleLoader__.load({
         previewOf: (controller, sessionId) => previewMap(controller).get(sessionId),
         pin: (controller, sessionId) => pinPreview(controller, sessionId),
         parentPath,
+        relativePath,
+        withLineTarget,
         terminalCdCommand,
         terminalInitCommand,
       },

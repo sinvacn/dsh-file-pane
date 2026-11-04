@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "File Pane",
-    "description": "VS Code-style file pane for the right sidebar: files open left of the Workspace tree, with preview tabs, terminal and Copy to Chat."
+    "description": "VS Code-style file pane for the right sidebar: files open left of the Workspace tree, with preview tabs, line-aware links, path copying, terminal and Copy to Chat."
   }
 }

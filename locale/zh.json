@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "文件面板",
-    "description": "在右栏左侧打开 Workspace 文件，文件树保留在右侧；支持 preview tab、右键终端和 Copy to Chat。"
+    "description": "在右栏左侧打开 Workspace 文件，文件树保留在右侧；支持 preview tab、带行号链接、右键复制路径/终端和 Copy to Chat。"
   }
 }

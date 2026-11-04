@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）右栏的文件体验接近 VS Code、Codex：文件树常驻右侧，文件在左侧打开；单击预览、双击固定；右键开终端；选中代码一键 Copy to Chat。
+让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）右栏的文件体验接近 VS Code、Codex：文件树常驻右侧，文件在左侧打开；单击预览、双击固定；聊天里的 `文件:行号` 链接直接定位；右键复制路径或开终端；选中代码一键 Copy to Chat。
 
 ## 截图
 
@@ -18,8 +18,10 @@
 
 1. **文件开在左侧**：点击 Workspace files 树里的文件，在树**左侧**的 pane 打开（默认 7:3）；树留在右边，展开状态和滚动位置保留。没空间 split 时回落到 DSH 原行为。
 2. **Preview tab**：单击替换当前 preview，双击文件或 tab 固定；已经固定的 tab 单击只聚焦。
-3. **右键 Terminal**：右键目录在该目录、右键文件在其所在目录打开终端，右键空白处在项目根目录打开；终端开在文件 pane 的兄弟 tab，不会盖住树。
-4. **Copy / Copy to Chat**：在预览里选中文本右键，*Copy* 保持原复制行为，*Copy to Chat* 把 `@文件 #Lx-Ly` 引用和选中代码插入对话输入框，不自动发送。
+3. **带行号的链接**：对话里点 `src/app.ts:42` 直接打开文件并定位到第 42 行；`:12-20`、`:12:5`（行:列）都从第 12 行开始，DSH 原生的 `#L42` / `#L42-L50` 同样可用。
+4. **复制路径**：右键文件或目录，复制相对 Workspace 根的相对路径（如 `src/app.ts`）或绝对路径；右键空白处复制项目根目录，相对路径为 `.`。不在 Workspace 内时退回复制绝对路径。
+5. **右键 Terminal**：右键目录在该目录、右键文件在其所在目录打开终端，右键空白处在项目根目录打开；终端开在文件 pane 的兄弟 tab，不会盖住树。
+6. **Copy / Copy to Chat**：在预览里选中文本右键，*Copy* 保持原复制行为，*Copy to Chat* 把 `@文件 #Lx-Ly` 引用和选中代码插入对话输入框，不自动发送。
 
 插入内容示例：
 
@@ -68,6 +70,7 @@ localStorage.setItem('dsh.file-pane.share', '0.7') // 文件/终端 pane 占 70%
 - 右栏总宽度上限不变；默认 70/30，已有 split 不会被自动改写，拖 divider 可调整。
 - 如果手动把树放在左边，文件/终端会开在右边的兄弟 pane，而不是交换 pane 顺序。
 - 行范围只对代码和纯文本预览生效；Markdown/PDF 只插入文件引用和选中文本，不带行号。
+- 文件名本身以 `:<数字>` 结尾时，聊天链接会把它当成行号（极少见）。
 - Copy to Chat 只插入不发送；没有输入框时退回复制到剪贴板。
 - Terminal 启动后会发送 `cd` 切到目标目录，这条命令会留在 shell history / scrollback。
 

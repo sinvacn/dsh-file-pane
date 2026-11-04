@@ -36,7 +36,7 @@ function createHarness({ panes, tabs, treePane }) {
   }
 
   let sequence = 0
-  const calls = { open: [], drop: [], focus: [], resize: [] }
+  const calls = { open: [], drop: [], focus: [], resize: [], openResource: [] }
 
   const store = {
     getSnapshot: () => ({ bySession: { s1: { layout } } }),
@@ -66,6 +66,9 @@ function createHarness({ panes, tabs, treePane }) {
 
   const controller = {
     adopted: new Map([['s1', { store }]]),
+    openResource(address, options = {}) {
+      calls.openResource.push({ address, options })
+    },
     openResourceIn(sessionId, address, options = {}) {
       calls.open.push({ sessionId, address, options })
       const existing = Object.values(layout.tabs).find(tab => tab.contentId === address)
@@ -335,6 +338,63 @@ test('terminal paths and cd commands follow the shell', () => {
   assert.equal(plugin.__test.terminalInitCommand({ name: 'cmd', path: 'C:\\Windows\\cmd.exe' }, 'C:\\work'), 'cd /d "C:\\work" && cls')
 })
 
+test('copy paths: relative to the workspace root, absolute otherwise', () => {
+  const relative = plugin.__test.relativePath
+  assert.equal(relative('/Users/sinva/project', '/Users/sinva/project/src/app.ts'), 'src/app.ts')
+  assert.equal(relative('/Users/sinva/project', '/Users/sinva/project/src'), 'src')
+  assert.equal(relative('/Users/sinva/project', '/Users/sinva/project/src/'), 'src', 'trailing separator is dropped')
+  assert.equal(relative('/Users/sinva/project/', '/Users/sinva/project/src/app.ts'), 'src/app.ts', 'root may end in a separator')
+  assert.equal(relative('/Users/sinva/project', '/Users/sinva/project'), '.', 'the root itself is .')
+  assert.equal(relative('/Users/sinva/project', '/Users/sinva/project2/app.ts'), '/Users/sinva/project2/app.ts', 'a sibling prefix is not relative')
+  assert.equal(relative('/Users/sinva/project', '/tmp/app.ts'), '/tmp/app.ts', 'outside the workspace stays absolute')
+  assert.equal(relative('C:\\work', 'C:\\work\\src\\app.ts'), 'src\\app.ts', 'Windows separators')
+  assert.equal(relative(undefined, '/tmp/app.ts'), '/tmp/app.ts', 'no root falls back to absolute')
+})
+
+test('a :line suffix opens the bare file and asks the preview for that line', async () => {
+  storage.value = null
+  const harness = createHarness({
+    panes: ['p1'],
+    tabs: [treeTab('tree')],
+    treePane: 'p1',
+  })
+  const dispose = mount(harness.controller)
+  try {
+    harness.controller.openResource(`${FILE_A}:100`)
+    assert.equal(harness.calls.openResource.length, 1)
+    assert.equal(harness.calls.openResource[0].address, FILE_A)
+    assert.equal(harness.calls.openResource[0].options.params.line, 100)
+
+    harness.controller.openResourceIn('s1', `${FILE_B}:12-20`, { paneId: 'p1' })
+    await tick()
+    assert.equal(harness.calls.open[0].address, FILE_B)
+    assert.equal(harness.calls.open[0].options.params.line, 12)
+  } finally {
+    dispose()
+  }
+})
+
+test('line suffix parsing keeps existing params and file paths intact', () => {
+  const target = plugin.__test.withLineTarget
+  const whole = target(`${FILE_A}:42`)
+  assert.equal(whole.address, FILE_A)
+  assert.equal(whole.options.params.line, 42)
+  assert.equal(target(`${FILE_A}:42-60`).options.params.line, 42, 'a range starts at its first line')
+  assert.equal(target(`${FILE_A}:42:7`).options.params.line, 42, 'column is ignored')
+  const merged = target(`${FILE_A}:42`, { paneId: 'p1', params: { reveal: true } })
+  assert.equal(merged.options.paneId, 'p1')
+  assert.equal(merged.options.params.reveal, true)
+  assert.equal(merged.options.params.line, 42)
+  const plain = target(FILE_A)
+  assert.equal(plain.address, FILE_A, 'no suffix is a no-op')
+  assert.deepEqual(Object.keys(plain.options), [], 'no options are invented')
+  assert.equal(target(`${FILE_A}:0`).address, `${FILE_A}:0`, 'lines start at 1')
+  assert.equal(target(`${FILE_A}:42x`).address, `${FILE_A}:42x`, 'only a complete suffix counts')
+  assert.equal(target(`${FILE_A}?q=:42`).address, `${FILE_A}?q=:42`, 'query suffixes are left alone')
+  assert.equal(target('dsh-resource://page/files:42').address, 'dsh-resource://page/files:42', 'non-file addresses are untouched')
+})
+
+
 test('the default split share is configurable and clamped to 20-80%', async () => {
   const cases = [['0.65', [0.65, 0.35]], ['0.7', [0.7, 0.3]], ['0.95', [0.8, 0.2]], ['0.1', [0.2, 0.8]]]
   for (const [value, expected] of cases) {
@@ -364,12 +424,15 @@ test('disposing restores the original open method and clears preview state', asy
     treePane: 'p1',
   })
   const original = harness.controller.openResourceIn
+  const originalOpenResource = harness.controller.openResource
   const dispose = mount(harness.controller)
   harness.controller.openResourceIn('s1', FILE_A, { paneId: 'p1' })
   await tick()
   assert.notEqual(harness.controller.openResourceIn, original)
+  assert.notEqual(harness.controller.openResource, originalOpenResource)
   dispose()
   assert.equal(harness.controller.openResourceIn, original)
+  assert.equal(harness.controller.openResource, originalOpenResource)
   assert.equal(plugin.__test.previewOf(harness.controller, 's1'), undefined)
   harness.controller.openResourceIn('s1', FILE_B, { paneId: 'p1' })
   await tick()
